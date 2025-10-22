@@ -17,7 +17,7 @@ export type { GeminiDriverConfig, GeminiDriverName } from './drivers/gemini/type
 
 // Export main classes
 export { AiManager } from './src/ai_manager.js'
-export { Ai } from './src/ai.js'
+export { AiService } from './src/ai_service.js'
 
 // Export contracts
 export * from './src/contracts.js'

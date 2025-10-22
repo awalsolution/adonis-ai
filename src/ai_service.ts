@@ -3,23 +3,20 @@
 | AI Service
 |--------------------------------------------------------------------------
 |
-| The main AI service that provides a unified interface for working with
-| different AI providers. It follows the same pattern as AdonisJS Drive.
+| The AI service represents a singleton instance of the AiManager
+| configured using the "config/ai.ts" file. This is the main
+| interface you interact with to access configured AI providers.
 |
 */
 
-import type { AiService, AiDriver, AiMessage, AiResponse, AiStreamResponse } from './types.js'
+import type { AiDriver, AiMessage, AiResponse, AiStreamResponse } from './types.js'
 import { AiManager } from './ai_manager.js'
 
-/**
- * AI Service implementation
- */
-export class Ai implements AiService {
-  private manager: AiManager
+export class AiService extends AiManager {
   private currentProvider?: string
 
-  constructor(manager: AiManager) {
-    this.manager = manager
+  constructor(config: any) {
+    super(config)
   }
 
   /**
@@ -27,7 +24,7 @@ export class Ai implements AiService {
    */
   async use(provider: string): Promise<AiDriver> {
     this.currentProvider = provider
-    return this.manager.use(provider)
+    return super.use(provider)
   }
 
   /**
@@ -78,16 +75,9 @@ export class Ai implements AiService {
    */
   private async getCurrentDriver(): Promise<AiDriver> {
     if (this.currentProvider) {
-      return this.manager.use(this.currentProvider)
+      return super.use(this.currentProvider)
     }
-    return this.manager.getDefaultDriver()
-  }
-
-  /**
-   * Get the AI manager instance
-   */
-  getManager(): AiManager {
-    return this.manager
+    return super.getDefaultDriver()
   }
 
   /**

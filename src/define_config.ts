@@ -24,5 +24,5 @@ export function defineAiConfig(config: AiProviderConfig) {
  * AI services configuration
  */
 export const services = {
-  ai: () => import('./ai.js'),
+  ai: () => import('./ai_service.js'),
 }

@@ -10,8 +10,15 @@
 
 import type { ApplicationService } from '@adonisjs/core/types'
 import { AiManager } from '../src/ai_manager.js'
-import { Ai } from '../src/ai.js'
+import { AiService } from '../src/ai_service.js'
 import { AiConfigurationError } from '../src/types.js'
+
+declare module '@adonisjs/core/types' {
+  interface ContainerBindings {
+    'ai.manager': AiManager
+    'ai': AiService
+  }
+}
 
 export default class AiProvider {
   constructor(protected app: ApplicationService) {}
@@ -20,7 +27,7 @@ export default class AiProvider {
    * Register bindings
    */
   register() {
-    this.app.container.singleton('ai_manager' as any, () => {
+    this.app.container.singleton('ai.manager' as any, () => {
       const config = this.app.config.get('ai') as any
       if (!config) {
         throw new AiConfigurationError(
@@ -31,8 +38,13 @@ export default class AiProvider {
     })
 
     this.app.container.singleton('ai' as any, () => {
-      const manager = this.app.container.make('ai_manager') as unknown as AiManager
-      return new Ai(manager)
+      const config = this.app.config.get('ai') as any
+      if (!config) {
+        throw new AiConfigurationError(
+          'AI configuration is missing. Please run "node ace configure @awalsolution/adonis-ai"'
+        )
+      }
+      return new AiService(config)
     })
   }
 
@@ -41,7 +53,7 @@ export default class AiProvider {
    */
   async boot() {
     // Validate AI configuration
-    const manager = this.app.container.make('ai_manager') as unknown as AiManager
+    const manager = this.app.container.make('ai.manager') as unknown as AiManager
     manager.validateConfig()
   }
 
@@ -51,7 +63,7 @@ export default class AiProvider {
   async start() {
     // Test AI providers if in development
     if (this.app.inDev) {
-      const manager = this.app.container.make('ai_manager') as unknown as AiManager
+      const manager = this.app.container.make('ai.manager') as unknown as AiManager
       const results = await manager.testProviders()
 
       for (const [provider, isWorking] of Object.entries(results)) {

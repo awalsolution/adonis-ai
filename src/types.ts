@@ -8,6 +8,8 @@
 |
 */
 
+import type { AiManager } from './ai_manager.js'
+
 /**
  * AI message interface for chat completions
  */
@@ -94,16 +96,25 @@ export interface AiProviderConfig {
 }
 
 /**
- * AI service interface for the main AI service
+ * AI service represents a singleton instance of the AiManager
+ * configured using the "config/ai.ts" file. This is the main
+ * interface you interact with to access configured AI providers.
+ *
+ * @example
+ * ```js
+ * // Injecting AI service
+ * export default class ChatController {
+ *   constructor(private ai: AiService) {}
+ *
+ *   async generate({ request }) {
+ *     const prompt = request.input('prompt')
+ *     const response = await this.ai.generateText(prompt)
+ *     return response
+ *   }
+ * }
+ * ```
  */
-export interface AiService {
-  use(provider: string): Promise<AiDriver>
-  generateText(prompt: string, options?: any): Promise<AiResponse>
-  generateChat(messages: AiMessage[], options?: any): Promise<AiResponse>
-  generateChatStream(messages: AiMessage[], options?: any): AsyncGenerator<AiStreamResponse>
-  generateEmbeddings(input: string | string[], options?: any): Promise<number[][]>
-  generateImages(prompt: string, options?: any): Promise<string[]>
-}
+export interface AiService extends AiManager {}
 
 /**
  * Error classes for AI operations

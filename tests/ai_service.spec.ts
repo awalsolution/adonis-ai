@@ -8,8 +8,7 @@
 */
 
 import { test } from '@japa/runner'
-import { Ai } from '../src/ai.js'
-import { AiManager } from '../src/ai_manager.js'
+import { AiService } from '../src/ai_service.js'
 
 test.group('AI Service', () => {
   test('should create AI service with manager', ({ assert }) => {
@@ -23,10 +22,9 @@ test.group('AI Service', () => {
       },
     }
 
-    const manager = new AiManager(config)
-    const ai = new Ai(manager)
+    const ai = new AiService(config)
 
-    assert.isDefined(ai.getManager())
+    assert.isDefined(ai)
     assert.isUndefined(ai.getCurrentProvider())
   })
 
@@ -45,8 +43,7 @@ test.group('AI Service', () => {
       },
     }
 
-    const manager = new AiManager(config)
-    const ai = new Ai(manager)
+    const ai = new AiService(config)
 
     await ai.use('gemini')
     assert.equal(ai.getCurrentProvider(), 'gemini')
@@ -66,8 +63,7 @@ test.group('AI Service', () => {
       },
     }
 
-    const manager = new AiManager(config)
-    const ai = new Ai(manager)
+    const ai = new AiService(config)
 
     try {
       await ai.use('nonexistent')

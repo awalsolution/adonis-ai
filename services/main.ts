@@ -8,7 +8,7 @@
  */
 
 import app from '@adonisjs/core/services/app'
-import type { AiService } from '../src/types.js'
+import type { AiService } from '../src/ai_service.js'
 
 let ai: AiService
 
