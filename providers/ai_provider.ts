@@ -3,90 +3,60 @@
 | AI Provider
 |--------------------------------------------------------------------------
 |
-| The AI provider is responsible for registering the AI service and its
-| related bindings in the AdonisJS application container.
+| This provider registers the AI manager and all AI drivers with the
+| AdonisJS application container. It follows the standard AdonisJS
+| provider lifecycle similar to the mail provider.
 |
 */
 
+import { configProvider } from '@adonisjs/core'
+import { RuntimeException } from '@adonisjs/core/exceptions'
 import type { ApplicationService } from '@adonisjs/core/types'
-import { AiManager } from '../src/ai_manager.js'
-import { AiService } from '../src/ai_service.js'
-import { AiConfigurationError } from '../src/types.js'
 
+import debug from '../src/debug.js'
+import { AIManager } from '../src/ai_manager.js'
+
+/**
+ * Extended types
+ */
 declare module '@adonisjs/core/types' {
-  interface ContainerBindings {
-    'ai.manager': AiManager
-    'ai': AiService
+  export interface ContainerBindings {
+    'ai.manager': AIManager
   }
 }
 
-export default class AiProvider {
+export default class AIProvider {
   constructor(protected app: ApplicationService) {}
 
   /**
-   * Register bindings
+   * Registering bindings to container
    */
   register() {
-    this.app.container.singleton('ai.manager' as any, () => {
-      const config = this.app.config.get('ai') as any
-      if (!config) {
-        throw new AiConfigurationError(
-          'AI configuration is missing. Please run "node ace configure @awalsolution/adonis-ai"'
-        )
-      }
-      return new AiManager(config)
-    })
+    this.app.container.singleton('ai.manager', async () => {
+      const aiConfigProvider = await this.app.config.get('ai')
+      const config = await configProvider.resolve<any>(this.app, aiConfigProvider)
 
-    this.app.container.singleton('ai' as any, () => {
-      const config = this.app.config.get('ai') as any
       if (!config) {
-        throw new AiConfigurationError(
-          'AI configuration is missing. Please run "node ace configure @awalsolution/adonis-ai"'
+        throw new RuntimeException(
+          'Invalid "config/ai.ts" file. Make sure you are using the "defineConfig" method!'
         )
       }
-      return new AiService(config)
+
+      return new AIManager(config)
     })
   }
 
   /**
-   * The application has been booted
+   * Invoked automatically when the app is booting
    */
   async boot() {
-    // Validate AI configuration
-    const manager = this.app.container.make('ai.manager') as unknown as AiManager
-    manager.validateConfig()
+    debug('AI provider booted successfully')
   }
 
   /**
-   * The application has been started
-   */
-  async start() {
-    // Test AI providers if in development
-    if (this.app.inDev) {
-      const manager = this.app.container.make('ai.manager') as unknown as AiManager
-      const results = await manager.testProviders()
-
-      for (const [provider, isWorking] of Object.entries(results)) {
-        if (!isWorking) {
-          console.warn(`AI provider "${provider}" is not properly configured`)
-        } else {
-          console.info(`AI provider "${provider}" is ready`)
-        }
-      }
-    }
-  }
-
-  /**
-   * The process has been started
-   */
-  async ready() {
-    // AI service is ready
-  }
-
-  /**
-   * The process is going to be shut down
+   * Cleanup hook
    */
   async shutdown() {
-    // Cleanup AI service resources if needed
+    debug('AI provider shutdown')
   }
 }

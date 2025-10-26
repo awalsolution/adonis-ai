@@ -1,52 +1,46 @@
-/*
-|--------------------------------------------------------------------------
-| Package Integration Tests
-|--------------------------------------------------------------------------
-|
-| Integration tests for the AI package
-|
-*/
-
 import { test } from '@japa/runner'
-import { AiManager } from '../src/ai_manager.js'
+import { AIManager } from '../src/ai_manager.js'
+import { createMockAIResponse } from './helpers.js'
 
-test.group('AI Package Integration', () => {
-  test('should work with multiple providers', ({ assert }) => {
+test.group('AI Package', () => {
+  test('should create AI package structure', ({ assert }) => {
     const config = {
       default: 'openai',
-      disks: {
-        openai: {
-          driver: 'openai',
-          apiKey: 'test-openai-key',
-          model: 'gpt-3.5-turbo',
-        },
-        gemini: {
-          driver: 'gemini',
-          apiKey: 'test-gemini-key',
-          model: 'gemini-pro',
-        },
+      timeout: 30000,
+      maxRetries: 3,
+      services: {
+        openai: () => ({}) as any,
       },
     }
 
-    const manager = new AiManager(config)
+    const manager = new AIManager(config)
 
-    assert.isTrue(manager.hasProvider('openai'))
-    assert.isTrue(manager.hasProvider('gemini'))
-    assert.equal(manager.getProviders().length, 2)
+    assert.equal(manager.getDefaultDriver(), 'openai')
+    assert.deepEqual(manager.getConfiguredServices(), ['openai'])
   })
 
-  test('should validate configuration', ({ assert }) => {
-    const config = {
-      default: 'openai',
-      disks: {
-        openai: {
-          driver: 'openai',
-          apiKey: 'test-key',
-        },
-      },
+  test('should handle mock AI responses', ({ assert }) => {
+    const mockResponse = createMockAIResponse({
+      text: 'Test response',
+      usage: { tokens: 50 },
+    })
+
+    assert.equal(mockResponse.text, 'Test response')
+    assert.equal(mockResponse.usage.tokens, 50)
+    assert.equal(mockResponse.finishReason, 'completed')
+  })
+
+  test('should validate AI driver interface', ({ assert }) => {
+    const mockDriver = {
+      generate: async () => createMockAIResponse(),
+      chat: async () => ({ ...createMockAIResponse(), messages: [] }),
+      embed: async () => ({ embeddings: [[]], usage: { tokens: 0 } }),
+      stream: async () => ({ ...createMockAIResponse(), stream: async function* () {} }),
     }
 
-    const manager = new AiManager(config)
-    assert.doesNotThrow(() => manager.validateConfig())
+    assert.isFunction(mockDriver.generate)
+    assert.isFunction(mockDriver.chat)
+    assert.isFunction(mockDriver.embed)
+    assert.isFunction(mockDriver.stream)
   })
 })

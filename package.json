@@ -1,6 +1,6 @@
 {
   "name": "@awalsolution/adonis-ai",
-  "description": "AI integration package for AdonisJS v6 with support for OpenAI and Google Gemini",
+  "description": "AI integration package for AdonisJS v6 with OpenAI and Gemini support",
   "version": "0.0.1",
   "engines": {
     "node": ">=20.6.0"
@@ -18,12 +18,11 @@
   "exports": {
     ".": "./build/index.js",
     "./types": "./build/src/types.js",
-    "./ai_provider": "./build/providers/ai_provider.js",
-    "./services/main": "./build/services/main.js"
+    "./ai_provider": "./build/providers/ai_provider.js"
   },
   "scripts": {
     "clean": "del-cli build",
-    "copy:templates": "copyfiles \"stubs/**/*.stub\" build",
+    "copy:templates": "copyfiles \"stubs/**/**/*.stub\" build",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "format": "prettier --write .",
@@ -41,11 +40,9 @@
     "adonisjs",
     "ai",
     "openai",
-    "gemini",
-    "machine-learning",
-    "adonis"
+    "gemini"
   ],
-  "author": "",
+  "author": "Awal Solution Team",
   "license": "MIT",
   "devDependencies": {
     "@adonisjs/assembler": "^7.8.2",
@@ -67,8 +64,8 @@
     "typescript": "^5.4.5"
   },
   "dependencies": {
-    "openai": "^4.67.0",
-    "@google/generative-ai": "^0.21.0"
+    "openai": "^4.57.0",
+    "@google/generative-ai": "^0.17.1"
   },
   "peerDependencies": {
     "@adonisjs/core": "^6.2.0"

@@ -1,76 +1,91 @@
 /*
 |--------------------------------------------------------------------------
-| Google Gemini Driver
+| Gemini Driver
 |--------------------------------------------------------------------------
 |
-| The Gemini driver implements the AI contract using the official Google
-| Generative AI SDK. It provides a unified interface for text generation,
-| chat completions, and other AI operations.
+| Simple driver for Google's Gemini AI API.
+| Handles text generation, chat, embeddings, and streaming.
+|
+| Usage:
+|   const gemini = new GeminiDriver({ apiKey: 'your-key' })
+|   const response = await gemini.generate('Hello world')
 |
 */
 
-import { GoogleGenerativeAI, GenerativeModel } from '@google/generative-ai'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 import type {
-  AiDriver,
-  AiMessage,
-  AiResponse,
-  AiStreamResponse,
-  AiConfig,
+  AIDriverContract,
+  AIResponse,
+  AIChatResponse,
+  AIEmbeddingResponse,
+  AIStreamResponse,
+  AIChatMessage,
 } from '../../src/types.js'
+import { BaseAIDriver } from '../../drivers/base_driver.js'
 
-export class GeminiDriver implements AiDriver {
+/**
+ * Configuration for Gemini AI driver
+ */
+export interface GeminiConfig {
+  apiKey: string
+  model?: string
+}
+
+/**
+ * Driver for Google Gemini AI API
+ */
+export class GeminiDriver extends BaseAIDriver implements AIDriverContract {
   private client: GoogleGenerativeAI
-  private model: GenerativeModel
-  private config: AiConfig
+  private config: GeminiConfig
 
-  constructor(config: AiConfig) {
-    if (!config.apiKey) {
-      throw new Error('API key is required for Gemini driver')
-    }
-
+  constructor(config: GeminiConfig) {
+    super('gemini')
     this.config = config
     this.client = new GoogleGenerativeAI(config.apiKey)
-    this.model = this.client.getGenerativeModel({
-      model: config.model || 'gemini-pro',
-      generationConfig: {
-        maxOutputTokens: config.maxTokens || 1000,
-        temperature: config.temperature || 0.7,
-      },
-    })
   }
 
   /**
-   * Generate text completion using Gemini's generateContent API
+   * Generate text from a prompt
    */
-  async generateText(prompt: string, _options?: any): Promise<AiResponse> {
+  async generate(prompt: string): Promise<AIResponse> {
     try {
-      const result = await this.model.generateContent(prompt)
-      const response = await result.response
+      const model = this.client.getGenerativeModel({
+        model: this.config.model || 'gemini-pro',
+      })
+
+      const result = await model.generateContent(prompt)
+      const response = result.response
       const text = response.text()
 
+      if (!text) {
+        throw new Error('No response generated from Gemini API')
+      }
+
       return {
-        content: text,
+        text,
         usage: {
-          promptTokens: 0, // Gemini doesn't provide detailed token usage
-          completionTokens: 0,
-          totalTokens: 0,
+          tokens: this.estimateTokens(text),
         },
+        finishReason: 'completed',
         model: this.config.model || 'gemini-pro',
-        finishReason: 'stop',
       }
     } catch (error: any) {
-      throw new Error(`Gemini API error: ${error.message}`)
+      throw this.mapCommonErrors(error)
     }
   }
 
   /**
-   * Generate chat completion using Gemini's chat API
+   * Generate chat completion from messages
    */
-  async generateChat(messages: AiMessage[], _options?: any): Promise<AiResponse> {
+  async chat(messages: AIChatMessage[]): Promise<AIChatResponse> {
     try {
-      const chat = this.model.startChat({
+      const model = this.client.getGenerativeModel({
+        model: this.config.model || 'gemini-pro',
+      })
+
+      const chat = model.startChat({
         history: messages.slice(0, -1).map((msg) => ({
-          role: msg.role === 'assistant' ? 'model' : 'user',
+          role: msg.role === 'assistant' ? 'model' : msg.role,
           parts: [{ text: msg.content }],
         })),
       })
@@ -80,101 +95,90 @@ export class GeminiDriver implements AiDriver {
       const response = await result.response
       const text = response.text()
 
+      if (!text) {
+        throw new Error('No response generated from Gemini API')
+      }
+
       return {
-        content: text,
+        text,
+        messages: [...messages, { role: 'assistant', content: text }],
         usage: {
-          promptTokens: 0, // Gemini doesn't provide detailed token usage
-          completionTokens: 0,
-          totalTokens: 0,
+          tokens: this.estimateTokens(text),
         },
+        finishReason: 'completed',
         model: this.config.model || 'gemini-pro',
-        finishReason: 'stop',
       }
     } catch (error: any) {
-      throw new Error(`Gemini Chat API error: ${error.message}`)
+      throw this.mapCommonErrors(error)
     }
   }
 
   /**
-   * Generate streaming chat completion
+   * Generate embeddings for text
    */
-  async *generateChatStream(
-    messages: AiMessage[],
-    _options?: any
-  ): AsyncGenerator<AiStreamResponse> {
+  async embed(text: string | string[]): Promise<AIEmbeddingResponse> {
     try {
-      const chat = this.model.startChat({
-        history: messages.slice(0, -1).map((msg) => ({
-          role: msg.role === 'assistant' ? 'model' : 'user',
-          parts: [{ text: msg.content }],
-        })),
+      const model = this.client.getGenerativeModel({
+        model: 'embedding-001',
       })
 
-      const lastMessage = messages[messages.length - 1]
-      const result = await chat.sendMessageStream(lastMessage.content)
-
-      for await (const chunk of result.stream) {
-        const chunkText = chunk.text()
-        if (chunkText) {
-          yield {
-            content: chunkText,
-            finishReason: undefined, // Gemini doesn't provide finish reason in stream
-          }
-        }
-      }
-    } catch (error: any) {
-      throw new Error(`Gemini Chat Stream API error: ${error.message}`)
-    }
-  }
-
-  /**
-   * Generate embeddings using Gemini's embedding API
-   */
-  async generateEmbeddings(input: string | string[], _options?: any): Promise<number[][]> {
-    try {
-      const model = this.client.getGenerativeModel({ model: 'embedding-001' })
-      const inputs = Array.isArray(input) ? input : [input]
+      const texts = Array.isArray(text) ? text : [text]
       const embeddings: number[][] = []
 
-      for (const text of inputs) {
-        const result = await model.embedContent(text)
-        const embedding = result.embedding
-        if (embedding) {
-          embeddings.push(Array.from(embedding.values))
-        }
+      for (const textItem of texts) {
+        const result = await model.embedContent(textItem)
+        embeddings.push(result.embedding.values)
       }
 
-      return embeddings
+      return {
+        embeddings,
+        usage: {
+          tokens: texts.reduce((total, textItem) => total + this.estimateTokens(textItem), 0),
+        },
+      }
     } catch (error: any) {
-      throw new Error(`Gemini Embeddings API error: ${error.message}`)
+      throw this.mapCommonErrors(error)
     }
   }
 
   /**
-   * Generate images using Gemini's image generation (if available)
+   * Generate streaming response
    */
-  async generateImages(_prompt: string, _options?: any): Promise<string[]> {
-    // Note: Gemini doesn't have a direct image generation API like DALL-E
-    // This is a placeholder for future compatibility
-    throw new Error('Image generation is not supported by Gemini driver')
-  }
-
-  /**
-   * Get the driver name
-   */
-  getDriverName(): string {
-    return 'gemini'
-  }
-
-  /**
-   * Check if the driver is properly configured
-   */
-  async isConfigured(): Promise<boolean> {
+  async stream(prompt: string): Promise<AIStreamResponse> {
     try {
-      await this.model.generateContent('test')
-      return true
-    } catch {
-      return false
+      const model = this.client.getGenerativeModel({
+        model: this.config.model || 'gemini-pro',
+      })
+
+      const result = await model.generateContentStream(prompt)
+
+      return {
+        text: '',
+        stream: this.processStream(result.stream),
+        usage: { tokens: 0 },
+      }
+    } catch (error: any) {
+      throw this.mapCommonErrors(error)
     }
+  }
+
+  /**
+   * Process streaming response from Gemini
+   */
+  private async *processStream(stream: any): AsyncIterable<string> {
+    for await (const chunk of stream) {
+      const text = chunk.text()
+      if (text) {
+        yield text
+      }
+    }
+  }
+
+  /**
+   * Estimate token count (rough approximation)
+   */
+  protected estimateTokens(text: string): number {
+    // Rough estimation: ~4 characters per token
+    return Math.ceil(text.length / 4)
   }
 }

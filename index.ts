@@ -1,26 +1,17 @@
 /*
 |--------------------------------------------------------------------------
-| Package entrypoint
+| @adonisjs/ai
 |--------------------------------------------------------------------------
 |
-| Export values from the package entrypoint as you see fit.
+| (c) AdonisJS
+|
+| For the full copyright and license information, please view the LICENSE
+| file that was distributed with this source code.
 |
 */
 
+export * as errors from './src/errors.js'
 export { configure } from './configure.js'
 export { stubsRoot } from './stubs/main.js'
-
-// Export types
-export * from './src/types.js'
-export type { OpenAiDriverConfig, OpenAiDriverName } from './drivers/openai/types.js'
-export type { GeminiDriverConfig, GeminiDriverName } from './drivers/gemini/types.js'
-
-// Export main classes
-export { AiManager } from './src/ai_manager.js'
-export { AiService } from './src/ai_service.js'
-
-// Export contracts
-export * from './src/contracts.js'
-
-// Export errors (defined in types.js)
-export { AiError, AiConfigurationError, AiProviderError, AiDriverError } from './src/types.js'
+export { defineConfig, services } from './src/define_config.js'
+export type * from './src/types.js'

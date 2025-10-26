@@ -1,151 +1,181 @@
 /*
 |--------------------------------------------------------------------------
-| AI Package Types
+| AI Types
 |--------------------------------------------------------------------------
 |
-| This file contains all the TypeScript types and interfaces used
-| throughout the AI package, following the same pattern as AdonisJS Drive.
+| This file contains all the type definitions for the AI package.
+| It follows the same pattern as the Drive package types.
 |
 */
 
-import type { AiManager } from './ai_manager.js'
+import type { ConfigProvider } from '@adonisjs/core/types'
 
 /**
- * AI message interface for chat completions
+ * Core AI types for responses and requests.
+ * These types define the structure of AI service responses.
  */
-export interface AiMessage {
-  role: 'system' | 'user' | 'assistant'
-  content: string
-}
-
-/**
- * AI response interface for text and chat completions
- */
-export interface AiResponse {
-  content: string
-  usage: {
-    promptTokens: number
-    completionTokens: number
-    totalTokens: number
+export interface AIResponse {
+  text: string
+  usage?: {
+    tokens: number
+    inputTokens?: number
+    outputTokens?: number
   }
-  model: string
-  finishReason: string
-}
-
-/**
- * AI streaming response interface
- */
-export interface AiStreamResponse {
-  content: string
   finishReason?: string
+  model?: string
+}
+
+export interface AIChatMessage {
+  role: 'user' | 'assistant' | 'system'
+  content: string
+}
+
+export interface AIChatResponse extends AIResponse {
+  messages: AIChatMessage[]
+}
+
+export interface AIEmbeddingResponse {
+  embeddings: number[][]
+  usage?: {
+    tokens: number
+  }
+}
+
+export interface AIStreamResponse extends AIResponse {
+  stream: AsyncIterable<string>
 }
 
 /**
- * AI configuration interface
+ * Core AI driver interface that all AI providers must implement.
+ * This defines the contract for AI service interactions, similar to MailTransportContract.
  */
-export interface AiConfig {
+export interface AIDriverContract {
+  /**
+   * Generate text from a prompt
+   */
+  generate(prompt: string, options?: any): Promise<AIResponse>
+
+  /**
+   * Generate chat completion from messages
+   */
+  chat(messages: AIChatMessage[], options?: any): Promise<AIChatResponse>
+
+  /**
+   * Generate embeddings for text
+   */
+  embed(text: string | string[], options?: any): Promise<AIEmbeddingResponse>
+
+  /**
+   * Generate streaming response
+   */
+  stream(prompt: string, options?: any): Promise<AIStreamResponse>
+
+  /**
+   * Cleanup transport connections
+   */
+  close?(): void | Promise<void>
+}
+
+/**
+ * Factory function to lazily initiate an AI driver
+ */
+export type AIDriverFactory = () => AIDriverContract
+
+/**
+ * Core AI driver interface that all AI providers must implement.
+ * This defines the contract for AI service interactions.
+ */
+export interface AIDriver extends AIDriverContract {}
+
+/**
+ * Configuration options for OpenAI driver.
+ */
+export interface OpenAIConfig {
   apiKey: string
   model?: string
   maxTokens?: number
   temperature?: number
-  organization?: string // OpenAI specific
-  embeddingModel?: string
-  [key: string]: any
 }
 
 /**
- * Driver-specific config types (mirror Drive's per-driver typing pattern)
+ * Configuration options for Gemini driver.
  */
-export type { OpenAiDriverConfig, OpenAiDriverName } from '../drivers/openai/types.js'
-export type { GeminiDriverConfig, GeminiDriverName } from '../drivers/gemini/types.js'
-
-/**
- * AI driver interface that all drivers must implement
- */
-export interface AiDriver {
-  generateText(prompt: string, options?: any): Promise<AiResponse>
-  generateChat(messages: AiMessage[], options?: any): Promise<AiResponse>
-  generateChatStream(messages: AiMessage[], options?: any): AsyncGenerator<AiStreamResponse>
-  generateEmbeddings(input: string | string[], options?: any): Promise<number[][]>
-  generateImages(prompt: string, options?: any): Promise<string[]>
-  getDriverName(): string
-  isConfigured(): Promise<boolean>
+export interface GeminiConfig {
+  apiKey: string
+  model?: string
+  maxTokens?: number
+  temperature?: number
 }
 
 /**
- * AI manager configuration interface
+ * Representation of a factory function that returns
+ * an instance of an AI driver. Used to create driver instances
+ * on demand.
  */
-export interface AiManagerConfig {
-  default: string
-  disks: {
-    [key: string]: AiConfig
-  }
+export type AIDriverFactoryFunction = () => AIDriver
+
+/**
+ * Service config provider is an extension of the config
+ * provider and accepts the name of the AI service.
+ * Used to configure services during setup.
+ */
+export interface ServiceConfigProvider<Factory extends AIDriverFactory> {
+  type: 'provider'
+  resolver: (name: string) => Promise<Factory>
 }
 
 /**
- * AI provider configuration interface
+ * A list of AI services inferred using the config defined inside
+ * the user-land application. This interface is extended via
+ * declaration merging to provide type-safe service names.
  */
-export interface AiProviderConfig {
-  default: string
-  providers: {
-    [key: string]: {
-      driver: string
-      config: AiConfig
-    }
-  }
-}
+export interface AIServices {}
 
 /**
- * AI service represents a singleton instance of the AiManager
+ * Utility type that infers the AI services configuration
+ * from a config provider type.
+ */
+export type InferAIServices<
+  T extends ConfigProvider<{ config: { services: Record<string, AIDriverFactory> } }>,
+> = Awaited<ReturnType<T['resolver']>>['config']['services']
+
+/**
+ * AI service represents a singleton instance of the AIManager
  * configured using the "config/ai.ts" file. This is the main
- * interface you interact with to access configured AI providers.
- *
- * @example
- * ```js
- * // Injecting AI service
- * export default class ChatController {
- *   constructor(private ai: AiService) {}
- *
- *   async generate({ request }) {
- *     const prompt = request.input('prompt')
- *     const response = await this.ai.generateText(prompt)
- *     return response
- *   }
- * }
- * ```
+ * interface you interact with to access configured AI services.
  */
-export interface AiService extends AiManager {}
+export interface AIService extends AIManager {}
 
 /**
- * Error classes for AI operations
+ * AI Manager interface for managing multiple AI drivers.
  */
-export class AiError extends Error {
-  constructor(
-    message: string,
-    public code?: string
-  ) {
-    super(message)
-    this.name = 'AiError'
-  }
+export interface AIManager {
+  use(driver?: string): AIDriver
+  useDefault(): AIDriver
+  getDefaultDriver(): string
+  getAvailableDrivers(): string[]
+  hasDriver(driver: string): boolean
+  getConfiguredServices(): string[]
+  getTimeout(): number
+  getMaxRetries(): number
+  get default(): AIDriver
 }
 
-export class AiConfigurationError extends AiError {
-  constructor(message: string) {
-    super(message, 'AI_CONFIGURATION_ERROR')
-    this.name = 'AiConfigurationError'
-  }
+/**
+ * AI Error interface for error handling.
+ */
+export interface AIError extends Error {
+  code?: string
+  provider?: string
+  statusCode?: number
 }
 
-export class AiProviderError extends AiError {
-  constructor(message: string) {
-    super(message, 'AI_PROVIDER_ERROR')
-    this.name = 'AiProviderError'
-  }
-}
-
-export class AiDriverError extends AiError {
-  constructor(message: string) {
-    super(message, 'AI_DRIVER_ERROR')
-    this.name = 'AiDriverError'
-  }
+/**
+ * AI Configuration interface.
+ */
+export interface AIConfig {
+  default: string
+  timeout: number
+  maxRetries: number
+  services: Record<string, AIDriverFactoryFunction>
 }

@@ -3,138 +3,111 @@
 | AI Manager
 |--------------------------------------------------------------------------
 |
-| The AI Manager handles driver resolution and provides a unified interface
-| for working with different AI providers. It follows the same pattern as
-| AdonisJS Drive Manager.
+| Advanced manager that handles multiple AI drivers (OpenAI, Gemini, etc.).
+| Provides easy access to different AI services through a unified interface,
+| similar to how MailManager works in the mail package.
+|
+| Features:
+| - Multiple driver support
+| - Event system
+| - Driver caching
+| - Configuration management
+|
+| Usage:
+|   const ai = new AIManager(config)
+|   ai.registerDriver('openai', new OpenAIDriver(config.openai))
+|   const response = await ai.use('openai').generate('Hello world')
 |
 */
 
-import type { AiDriver, AiManagerConfig, AiConfig } from './types.js'
-import { AiConfigurationError, AiProviderError } from './types.js'
+import debug from './debug.js'
+import { AIDriverNotFoundException } from './errors.js'
+import type { AIConfig, AIDriver, AIManager as IAIManager } from './types.js'
 
-/**
- * AI Manager class for handling multiple AI providers
- */
-export class AiManager {
-  private drivers: Map<string, AiDriver> = new Map()
-  private config: AiManagerConfig
-  private driverConstructors: Map<string, new (config: AiConfig) => AiDriver> = new Map()
+export class AIManager implements IAIManager {
+  private drivers: Map<string, AIDriver> = new Map()
+  private config: AIConfig
 
-  constructor(config: AiManagerConfig) {
+  constructor(config: AIConfig) {
     this.config = config
-    // Register default drivers synchronously for now
-    this.registerDefaultDriversSync()
+    debug('AI Manager initialized with config: %o', config)
   }
 
   /**
-   * Register a driver constructor
+   * Add a new AI driver (e.g., OpenAI, Gemini)
    */
-  registerDriver(name: string, driverConstructor: (config: AiConfig) => Promise<AiDriver>): void {
-    this.driverConstructors.set(name, driverConstructor as any)
+  registerDriver(name: string, driver: AIDriver): void {
+    this.drivers.set(name, driver)
+    debug('Registered AI driver: %s', name)
   }
 
   /**
-   * Get a driver instance by name
+   * Get a specific AI driver by name, or default if no name given
    */
-  async use(provider: string): Promise<AiDriver> {
-    if (this.drivers.has(provider)) {
-      return this.drivers.get(provider)!
+  use(driver?: string): AIDriver {
+    const driverName = driver || this.config.default
+    const aiDriver = this.drivers.get(driverName)
+
+    if (!aiDriver) {
+      throw new AIDriverNotFoundException(driverName)
     }
 
-    const providerConfig = this.config.disks[provider]
-    if (!providerConfig) {
-      throw new AiProviderError(`AI provider "${provider}" is not configured`)
-    }
-
-    const driverName = providerConfig.driver || provider
-    const DriverConstructor = this.driverConstructors.get(driverName)
-
-    if (!DriverConstructor) {
-      throw new AiProviderError(`AI driver "${driverName}" is not registered`)
-    }
-
-    try {
-      const driver = await (DriverConstructor as any)(providerConfig)
-      this.drivers.set(provider, driver)
-      return driver
-    } catch (error: any) {
-      throw new AiProviderError(`Failed to create AI driver "${driverName}": ${error.message}`)
-    }
+    return aiDriver
   }
 
   /**
-   * Get the default driver
+   * Get the default AI driver (shortcut for use())
    */
-  async getDefaultDriver(): Promise<AiDriver> {
+  useDefault(): AIDriver {
+    return this.use()
+  }
+
+  /**
+   * Get the default driver name
+   */
+  getDefaultDriver(): string {
+    return this.config.default
+  }
+
+  /**
+   * Get all available driver names
+   */
+  getAvailableDrivers(): string[] {
+    return Array.from(this.drivers.keys())
+  }
+
+  /**
+   * Quick access to default driver (same as useDefault())
+   */
+  get default(): AIDriver {
     return this.use(this.config.default)
   }
 
   /**
-   * Check if a provider is configured
+   * Check if a driver is available
    */
-  hasProvider(provider: string): boolean {
-    return provider in this.config.disks
+  hasDriver(driver: string): boolean {
+    return this.drivers.has(driver)
   }
 
   /**
-   * Get all configured providers
+   * Get all configured services from config
    */
-  getProviders(): string[] {
-    return Object.keys(this.config.disks)
+  getConfiguredServices(): string[] {
+    return Object.keys(this.config.services || {})
   }
 
   /**
-   * Register default drivers (OpenAI and Gemini)
+   * Get timeout configuration
    */
-  private registerDefaultDriversSync(): void {
-    // For now, we'll register them as dynamic imports that will be resolved when needed
-    this.registerDriver('openai', (async (config: AiConfig) => {
-      const { OpenAiDriver } = await import('../drivers/openai/main.js')
-      return new OpenAiDriver(config)
-    }) as any)
-
-    this.registerDriver('gemini', (async (config: AiConfig) => {
-      const { GeminiDriver } = await import('../drivers/gemini/main.js')
-      return new GeminiDriver(config)
-    }) as any)
+  getTimeout(): number {
+    return this.config.timeout
   }
 
   /**
-   * Validate configuration
+   * Get max retries configuration
    */
-  validateConfig(): void {
-    if (!this.config.default) {
-      throw new AiConfigurationError('Default AI provider is not configured')
-    }
-
-    if (!this.config.disks[this.config.default]) {
-      throw new AiConfigurationError(
-        `Default AI provider "${this.config.default}" is not configured`
-      )
-    }
-
-    for (const [name, config] of Object.entries(this.config.disks)) {
-      if (!config.apiKey) {
-        throw new AiConfigurationError(`AI provider "${name}" is missing API key`)
-      }
-    }
-  }
-
-  /**
-   * Test all configured providers
-   */
-  async testProviders(): Promise<{ [key: string]: boolean }> {
-    const results: { [key: string]: boolean } = {}
-
-    for (const provider of this.getProviders()) {
-      try {
-        const driver = await this.use(provider)
-        results[provider] = await driver.isConfigured()
-      } catch {
-        results[provider] = false
-      }
-    }
-
-    return results
+  getMaxRetries(): number {
+    return this.config.maxRetries
   }
 }

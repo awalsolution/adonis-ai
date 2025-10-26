@@ -1,60 +1,33 @@
-/*
-|--------------------------------------------------------------------------
-| AI Configuration
-|--------------------------------------------------------------------------
-|
-| This file contains the configuration for the AI package. You can configure
-| multiple AI providers and switch between them as needed.
-|
-*/
+{{{
+  exports({ to: app.configPath('ai.ts') })
+}}}
+import env from '#start/env'
+import { defineConfig, services } from '@awalsolution/adonis-ai'
 
-import { defineConfig } from '@adonisjs/core/app'
-
-export default defineConfig({
-  /*
-  |--------------------------------------------------------------------------
-  | Default Provider
-  |--------------------------------------------------------------------------
-  |
-  | The default AI provider to use when no specific provider is specified.
-  | Must be one of the providers defined in the "providers" section below.
-  |
-  */
-  default: 'openai',
-
-  /*
-  |--------------------------------------------------------------------------
-  | AI Providers
-  |--------------------------------------------------------------------------
-  |
-  | Configure your AI providers here. Each provider must have a unique name
-  | and specify the driver to use along with its configuration.
-  |
-  | Available drivers:
-  | - openai: Uses OpenAI's API
-  | - gemini: Uses Google's Gemini API
-  |
-  */
-  providers: {
-    openai: {
-      driver: 'openai',
-      config: {
-        apiKey: env('OPENAI_API_KEY'),
-        model: 'gpt-3.5-turbo',
-        maxTokens: 1000,
-        temperature: 0.7,
-        organization: env('OPENAI_ORGANIZATION'),
-      },
-    },
-
-    gemini: {
-      driver: 'gemini',
-      config: {
-        apiKey: env('GEMINI_API_KEY'),
-        model: 'gemini-pro',
-        maxTokens: 1000,
-        temperature: 0.7,
-      },
-    },
+const aiConfig = defineConfig({
+  default: env.get('AI_DRIVER'),
+  /**
+   * The services object can be used to configure multiple AI services
+   * each using the same or a different provider.
+   */
+  services: { {{#if services.includes('openai')}}
+    openai: services.openai({
+      apiKey: env.get('OPENAI_API_KEY'),
+      model: env.get('OPENAI_MODEL', 'gpt-3.5-turbo'),
+      maxTokens: env.get('OPENAI_MAX_TOKENS', 1000),
+      temperature: env.get('OPENAI_TEMPERATURE', 0.7),
+    }),{{/if}}{{#if services.includes('gemini')}}
+    gemini: services.gemini({
+      apiKey: env.get('GEMINI_API_KEY'),
+      model: env.get('GEMINI_MODEL', 'gemini-pro'),
+      maxTokens: env.get('GEMINI_MAX_TOKENS', 1000),
+      temperature: env.get('GEMINI_TEMPERATURE', 0.7),
+    }),{{/if}}
   },
 })
+
+export default aiConfig
+
+declare module '@awalsolution/adonis-ai/types' {
+  export interface AIServices extends InferAIServices<typeof aiConfig> {}
+}

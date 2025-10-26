@@ -1,22 +1,24 @@
 /*
- * @awalsolution/adonis-ai
- *
- * (c) AdonisJS
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
- */
+|--------------------------------------------------------------------------
+| AI Service
+|--------------------------------------------------------------------------
+|
+| This file exports a singleton instance of the AIManager from the
+| container. It follows the same pattern as the Drive service.
+|
+*/
 
 import app from '@adonisjs/core/services/app'
-import type { AiService } from '../src/ai_service.js'
+import type { AIManager } from '../src/ai_manager.js'
 
-let ai: AiService
+let ai: AIManager
 
 /**
- * Returns a singleton instance of the AI service from the container.
+ * Returns a singleton instance of the AIManager class from the
+ * container.
  */
 await app.booted(async () => {
-  ai = await app.container.make('ai')
+  ai = await app.container.make('ai.manager')
 })
 
 export { ai as default }
