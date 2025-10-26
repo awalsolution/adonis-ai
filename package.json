@@ -7,18 +7,20 @@
   },
   "type": "module",
   "files": [
-    "build/src",
-    "build/providers",
-    "build/stubs",
-    "build/index.d.ts",
-    "build/index.js",
-    "build/configure.d.ts",
-    "build/configure.js"
+    "build",
+    "!build/bin",
+    "!build/tests"
   ],
   "exports": {
     ".": "./build/index.js",
     "./types": "./build/src/types.js",
-    "./ai_provider": "./build/providers/ai_provider.js"
+    "./commands": "./build/commands/main.js",
+    "./ai_provider": "./build/providers/ai_provider.js",
+    "./services/main": "./build/services/main.js",
+    "./drivers/gemini": "./build/drivers/gemini/main.js",
+    "./drivers/gemini/types": "./build/drivers/gemini/types.js",
+    "./drivers/openai": "./build/drivers/openai/main.js",
+    "./drivers/openai/types": "./build/drivers/openai/types.js"
   },
   "scripts": {
     "clean": "del-cli build",
@@ -40,7 +42,13 @@
     "adonisjs",
     "ai",
     "openai",
-    "gemini"
+    "gemini",
+    "adonis ai",
+    "adonis openai",
+    "adonis gemini",
+    "adonisjs ai",
+    "adonisjs openai",
+    "adonisjs gemini"
   ],
   "author": "Awal Solution Team",
   "license": "MIT",
@@ -69,6 +77,14 @@
   },
   "peerDependencies": {
     "@adonisjs/core": "^6.2.0"
+  },
+  "homepage": "https://github.com/awalsolution/adonis-ai#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/awalsolution/adonis-ai.git"
+  },
+  "bugs": {
+    "url": "https://github.com/awalsolution/adonis-ai/issues"
   },
   "publishConfig": {
     "access": "public",
