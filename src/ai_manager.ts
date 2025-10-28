@@ -30,7 +30,12 @@ export class AIManager implements IAIManager {
 
   constructor(config: AIConfig) {
     this.config = config
-    debug('AI Manager initialized with config: %o', config)
+    debug('AI Manager initialized with config: %o', {
+      default: config.default,
+      timeout: config.timeout,
+      maxRetries: config.maxRetries,
+      services: Object.keys(config.services),
+    })
   }
 
   /**
@@ -78,6 +83,11 @@ export class AIManager implements IAIManager {
 
   /**
    * Quick access to default driver (same as useDefault())
+   *
+   * @example
+   * ```js
+   * const response = await ai.default.generate('Hello')
+   * ```
    */
   get default(): AIDriver {
     return this.use(this.config.default)
@@ -85,6 +95,16 @@ export class AIManager implements IAIManager {
 
   /**
    * Check if a driver is available
+   *
+   * @param driver - The name of the driver to check
+   * @returns True if the driver is registered, false otherwise
+   *
+   * @example
+   * ```js
+   * if (ai.hasDriver('openai')) {
+   *   const response = await ai.use('openai').generate('Hello')
+   * }
+   * ```
    */
   hasDriver(driver: string): boolean {
     return this.drivers.has(driver)
@@ -92,13 +112,23 @@ export class AIManager implements IAIManager {
 
   /**
    * Get all configured services from config
+   *
+   * @returns Array of service names from configuration
+   *
+   * @example
+   * ```js
+   * const services = ai.getConfiguredServices()
+   * console.log(services) // ['openai', 'gemini']
+   * ```
    */
   getConfiguredServices(): string[] {
     return Object.keys(this.config.services || {})
   }
 
   /**
-   * Get timeout configuration
+   * Get timeout configuration in milliseconds
+   *
+   * @returns The configured timeout value
    */
   getTimeout(): number {
     return this.config.timeout
@@ -106,6 +136,8 @@ export class AIManager implements IAIManager {
 
   /**
    * Get max retries configuration
+   *
+   * @returns The configured maximum number of retry attempts
    */
   getMaxRetries(): number {
     return this.config.maxRetries

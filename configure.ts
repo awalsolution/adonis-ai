@@ -137,7 +137,6 @@ export async function configure(command: Configure) {
    */
   await codemods.updateRcFile((rcFile) => {
     rcFile.addProvider('@awalsolution/adonis-ai/ai_provider')
-    rcFile.addCommand('@awalsolution/adonis-ai/commands')
   })
 
   /**

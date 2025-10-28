@@ -1,7 +1,7 @@
 {
   "name": "@awalsolution/adonis-ai",
   "description": "AI integration package for AdonisJS v6 with OpenAI and Gemini support",
-  "version": "1.0.1",
+  "version": "1.0.0",
   "engines": {
     "node": ">=20.6.0"
   },
@@ -14,7 +14,6 @@
   "exports": {
     ".": "./build/index.js",
     "./types": "./build/src/types.js",
-    "./commands": "./build/commands/main.js",
     "./ai_provider": "./build/providers/ai_provider.js",
     "./services/main": "./build/services/main.js",
     "./drivers/gemini": "./build/drivers/gemini/main.js",

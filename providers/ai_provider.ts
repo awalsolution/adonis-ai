@@ -42,7 +42,18 @@ export default class AIProvider {
         )
       }
 
-      return new AIManager(config)
+      const manager = new AIManager(config)
+
+      /**
+       * Register all configured drivers with the manager
+       */
+      for (const [serviceName, driverFactory] of Object.entries(config.services)) {
+        const driver = (driverFactory as () => any)()
+        manager.registerDriver(serviceName, driver)
+        debug('Registered driver: %s', serviceName)
+      }
+
+      return manager
     })
   }
 
