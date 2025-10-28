@@ -1,7 +1,7 @@
 {
   "name": "@awalsolution/adonis-ai",
   "description": "AI integration package for AdonisJS v6 with OpenAI and Gemini support",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "engines": {
     "node": ">=20.6.0"
   },
