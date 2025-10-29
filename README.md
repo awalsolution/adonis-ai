@@ -23,6 +23,34 @@ This package brings AI capabilities to your AdonisJS applications with minimal s
 
 ---
 
+## 🚀 Quick Start
+
+```typescript
+// 1. Install
+npm install @awalsolution/adonis-ai
+
+// 2. Configure
+node ace configure @awalsolution/adonis-ai
+
+// 3. Use in your code
+import ai from '@awalsolution/adonis-ai/services/main'
+
+// Generate text (uses default driver from config)
+const result = await ai.use().generate('Write a poem about TypeScript')
+console.log(result.text)
+
+// Chat with default driver
+const chat = await ai.use().chat([
+  { role: 'user', content: 'Hello!' }
+])
+
+// Use specific provider
+const openai = await ai.use('openai').generate('Hello from OpenAI')
+const gemini = await ai.use('gemini').generate('Hello from Gemini')
+```
+
+---
+
 ## 📦 Installation
 
 ```bash
@@ -38,6 +66,7 @@ node ace configure @awalsolution/adonis-ai
 ```
 
 The wizard will:
+
 - ✅ Ask which AI providers you want to use (OpenAI, Gemini, or both)
 - ✅ Create the configuration file `config/ai.ts`
 - ✅ Set up environment variables in `.env`
@@ -45,6 +74,7 @@ The wizard will:
 - ✅ Register the provider in your app
 
 **Quick setup with flags:**
+
 ```bash
 # Install OpenAI and Gemini automatically
 node ace configure @awalsolution/adonis-ai --services=openai,gemini --install
@@ -69,17 +99,20 @@ AI_MAX_RETRIES=3
 # OpenAI Settings
 OPENAI_API_KEY=sk-your-openai-api-key-here
 OPENAI_MODEL=gpt-3.5-turbo
+OPENAI_EMBEDDING_MODEL=text-embedding-ada-002
 OPENAI_MAX_TOKENS=1000
 OPENAI_TEMPERATURE=0.7
 
 # Google Gemini Settings
 GEMINI_API_KEY=your-gemini-api-key-here
 GEMINI_MODEL=gemini-pro
+GEMINI_EMBEDDING_MODEL=embedding-001
 GEMINI_MAX_TOKENS=1000
 GEMINI_TEMPERATURE=0.7
 ```
 
 **Get your API keys:**
+
 - OpenAI: [https://platform.openai.com/api-keys](https://platform.openai.com/api-keys)
 - Google Gemini: [https://makersuite.google.com/app/apikey](https://makersuite.google.com/app/apikey)
 
@@ -106,11 +139,13 @@ export default defineConfig({
     openai: services.openai({
       apiKey: env.get('OPENAI_API_KEY'),
       model: env.get('OPENAI_MODEL'),
+      embeddingModel: env.get('OPENAI_EMBEDDING_MODEL', 'text-embedding-ada-002'),
     }),
 
     gemini: services.gemini({
       apiKey: env.get('GEMINI_API_KEY'),
       model: env.get('GEMINI_MODEL'),
+      embeddingModel: env.get('GEMINI_EMBEDDING_MODEL', 'embedding-001'),
     }),
   },
 })
@@ -126,12 +161,11 @@ Generate text from a simple prompt:
 
 ```typescript
 import router from '@adonisjs/core/services/router'
+import ai from '@awalsolution/adonis-ai/services/main'
 
 router.post('/generate', async ({ request, response }) => {
-  const ai = await app.container.make('ai.manager')
-
   const prompt = request.input('prompt')
-  const result = await ai.default.generate(prompt)
+  const result = await ai.use().generate(prompt)
 
   return response.json({
     text: result.text,
@@ -141,6 +175,7 @@ router.post('/generate', async ({ request, response }) => {
 ```
 
 **Example Request:**
+
 ```bash
 curl -X POST http://localhost:3333/generate \
   -H "Content-Type: application/json" \
@@ -154,21 +189,22 @@ curl -X POST http://localhost:3333/generate \
 Create conversational AI with message history:
 
 ```typescript
+import ai from '@awalsolution/adonis-ai/services/main'
+import type { HttpContext } from '@adonisjs/core/http'
+
 export default class ChatController {
   async chat({ request, response }: HttpContext) {
-    const ai = await app.container.make('ai.manager')
-
     // Get conversation history from request
     const messages = request.input('messages', [])
 
     // Add user's new message
     messages.push({
       role: 'user',
-      content: request.input('message')
+      content: request.input('message'),
     })
 
     // Get AI response
-    const result = await ai.default.chat(messages)
+    const result = await ai.use().chat(messages)
 
     return response.json({
       messages: result.messages, // Includes history + AI response
@@ -179,6 +215,7 @@ export default class ChatController {
 ```
 
 **Example Request:**
+
 ```bash
 curl -X POST http://localhost:3333/chat \
   -H "Content-Type: application/json" \
@@ -198,10 +235,11 @@ curl -X POST http://localhost:3333/chat \
 Create vector embeddings for semantic search:
 
 ```typescript
+import ai from '@awalsolution/adonis-ai/services/main'
+import type { HttpContext } from '@adonisjs/core/http'
+
 export default class EmbeddingsController {
   async embed({ request, response }: HttpContext) {
-    const ai = await app.container.make('ai.manager')
-
     const texts = request.input('texts') // Array of strings
     const result = await ai.use('openai').embed(texts)
 
@@ -211,9 +249,20 @@ export default class EmbeddingsController {
     })
   }
 
+  // Use a specific embedding model
+  async embedWithCustomModel({ request, response }: HttpContext) {
+    const texts = request.input('texts')
+
+    // Use newer OpenAI embedding model
+    const result = await ai.use('openai').embed(texts, {
+      model: 'text-embedding-3-large'
+    })
+
+    return response.json({ embeddings: result.embeddings })
+  }
+
   // Search similar documents
   async search({ request, response }: HttpContext) {
-    const ai = await app.container.make('ai.manager')
     const query = request.input('query')
 
     // Generate embedding for search query
@@ -227,6 +276,10 @@ export default class EmbeddingsController {
 }
 ```
 
+**Available Embedding Models:**
+- **OpenAI**: `text-embedding-ada-002` (default), `text-embedding-3-small`, `text-embedding-3-large`
+- **Gemini**: `embedding-001` (default)
+
 ---
 
 ### Streaming Responses
@@ -234,9 +287,11 @@ export default class EmbeddingsController {
 Stream AI responses in real-time:
 
 ```typescript
+import ai from '@awalsolution/adonis-ai/services/main'
+import type { HttpContext } from '@adonisjs/core/http'
+
 export default class StreamController {
   async stream({ request, response }: HttpContext) {
-    const ai = await app.container.make('ai.manager')
     const prompt = request.input('prompt')
 
     // Set up streaming response
@@ -245,7 +300,7 @@ export default class StreamController {
     response.header('Connection', 'keep-alive')
 
     // Get streaming result
-    const result = await ai.default.stream(prompt)
+    const result = await ai.use().stream(prompt)
 
     // Stream chunks to client
     for await (const chunk of result.stream) {
@@ -258,6 +313,7 @@ export default class StreamController {
 ```
 
 **Frontend Example:**
+
 ```javascript
 const eventSource = new EventSource('/stream?prompt=Tell+me+a+story')
 
@@ -274,14 +330,15 @@ eventSource.onmessage = (event) => {
 ### 1. Content Generation
 
 ```typescript
+import ai from '@awalsolution/adonis-ai/services/main'
+import type { HttpContext } from '@adonisjs/core/http'
+
 // Blog post generator
 async generateBlogPost({ request }: HttpContext) {
-  const ai = await app.container.make('ai.manager')
-
   const topic = request.input('topic')
   const prompt = `Write a professional blog post about: ${topic}`
 
-  const result = await ai.default.generate(prompt, {
+  const result = await ai.use().generate(prompt, {
     max_tokens: 2000,
     temperature: 0.8, // More creative
   })
@@ -293,10 +350,11 @@ async generateBlogPost({ request }: HttpContext) {
 ### 2. Customer Support Bot
 
 ```typescript
+import ai from '@awalsolution/adonis-ai/services/main'
+import type { HttpContext } from '@adonisjs/core/http'
+
 // Intelligent support assistant
 async supportChat({ request, auth }: HttpContext) {
-  const ai = await app.container.make('ai.manager')
-
   const messages = [
     {
       role: 'system',
@@ -320,10 +378,11 @@ async supportChat({ request, auth }: HttpContext) {
 ### 3. Document Analysis
 
 ```typescript
+import ai from '@awalsolution/adonis-ai/services/main'
+import type { HttpContext } from '@adonisjs/core/http'
+
 // Analyze and summarize documents
 async analyzeDocument({ request }: HttpContext) {
-  const ai = await app.container.make('ai.manager')
-
   const document = request.input('document')
   const prompt = `Analyze this document and provide:
     1. Main topics
@@ -332,7 +391,7 @@ async analyzeDocument({ request }: HttpContext) {
 
     Document: ${document}`
 
-  const result = await ai.default.generate(prompt)
+  const result = await ai.use().generate(prompt)
 
   return { analysis: result.text }
 }
@@ -341,11 +400,12 @@ async analyzeDocument({ request }: HttpContext) {
 ### 4. Semantic Search
 
 ```typescript
+import ai from '@awalsolution/adonis-ai/services/main'
+import db from '@adonisjs/lucid/services/db'
+import type { HttpContext } from '@adonisjs/core/http'
+
 // Search with natural language
 async semanticSearch({ request }: HttpContext) {
-  const ai = await app.container.make('ai.manager')
-  const db = await Database.connection()
-
   const searchQuery = request.input('query')
 
   // Generate embedding for search query
@@ -368,14 +428,15 @@ async semanticSearch({ request }: HttpContext) {
 ### 5. Language Translation
 
 ```typescript
+import ai from '@awalsolution/adonis-ai/services/main'
+import type { HttpContext } from '@adonisjs/core/http'
+
 // Translate content
 async translate({ request }: HttpContext) {
-  const ai = await app.container.make('ai.manager')
-
   const text = request.input('text')
   const targetLang = request.input('language')
 
-  const result = await ai.default.generate(
+  const result = await ai.use().generate(
     `Translate the following text to ${targetLang}: "${text}"`
   )
 
@@ -386,10 +447,11 @@ async translate({ request }: HttpContext) {
 ### 6. Code Assistant
 
 ```typescript
+import ai from '@awalsolution/adonis-ai/services/main'
+import type { HttpContext } from '@adonisjs/core/http'
+
 // Help developers with code
 async codeHelper({ request }: HttpContext) {
-  const ai = await app.container.make('ai.manager')
-
   const code = request.input('code')
   const task = request.input('task') // 'explain', 'optimize', 'debug'
 
@@ -399,7 +461,7 @@ async codeHelper({ request }: HttpContext) {
     debug: `Find potential bugs in:\n\`\`\`\n${code}\n\`\`\``
   }
 
-  const result = await ai.default.generate(prompts[task])
+  const result = await ai.use().generate(prompts[task])
 
   return { response: result.text }
 }
@@ -412,24 +474,14 @@ async codeHelper({ request }: HttpContext) {
 Use specific providers or let the config decide:
 
 ```typescript
-const ai = await app.container.make('ai.manager')
+import ai from '@awalsolution/adonis-ai/services/main'
 
 // Use default provider (from AI_DRIVER env)
-await ai.default.generate('Hello')
-await ai.useDefault().generate('Hello')
+await ai.use().generate('Hello')
 
 // Use specific provider
 await ai.use('openai').generate('Hello from OpenAI')
 await ai.use('gemini').generate('Hello from Gemini')
-
-// Check available providers
-const providers = ai.getAvailableDrivers()
-console.log(providers) // ['openai', 'gemini']
-
-// Check if provider exists
-if (ai.hasDriver('openai')) {
-  // Use OpenAI
-}
 ```
 
 ---
@@ -439,48 +491,53 @@ if (ai.hasDriver('openai')) {
 The package provides detailed error types for better debugging:
 
 ```typescript
+import ai from '@awalsolution/adonis-ai/services/main'
 import { errors } from '@awalsolution/adonis-ai'
+import type { HttpContext } from '@adonisjs/core/http'
 
-try {
-  const ai = await app.container.make('ai.manager')
-  const result = await ai.default.generate('Hello')
+export default class AIController {
+  async generate({ request, response }: HttpContext) {
+    try {
+      const result = await ai.use().generate(request.input('prompt'))
+      return result
+    } catch (error) {
+      if (error instanceof errors.AIApiKeyException) {
+        // API key is missing or invalid
+        return response.status(500).json({
+          error: 'AI service not configured properly',
+        })
+      }
 
-  return result
-} catch (error) {
-  if (error instanceof errors.AIApiKeyException) {
-    // API key is missing or invalid
-    return response.status(500).json({
-      error: 'AI service not configured properly'
-    })
+      if (error instanceof errors.AIRateLimitException) {
+        // Too many requests
+        return response.status(429).json({
+          error: 'Rate limit exceeded, please try again later',
+        })
+      }
+
+      if (error instanceof errors.AITimeoutException) {
+        // Request took too long
+        return response.status(408).json({
+          error: 'Request timeout, please try again',
+        })
+      }
+
+      if (error instanceof errors.AIServiceException) {
+        // General AI service error
+        return response.status(500).json({
+          error: 'AI service error: ' + error.message,
+        })
+      }
+
+      // Unknown error
+      throw error
+    }
   }
-
-  if (error instanceof errors.AIRateLimitException) {
-    // Too many requests
-    return response.status(429).json({
-      error: 'Rate limit exceeded, please try again later'
-    })
-  }
-
-  if (error instanceof errors.AITimeoutException) {
-    // Request took too long
-    return response.status(408).json({
-      error: 'Request timeout, please try again'
-    })
-  }
-
-  if (error instanceof errors.AIServiceException) {
-    // General AI service error
-    return response.status(500).json({
-      error: 'AI service error: ' + error.message
-    })
-  }
-
-  // Unknown error
-  throw error
 }
 ```
 
 **Available Error Types:**
+
 - `AIApiKeyException` - Missing or invalid API keys
 - `AIDriverNotFoundException` - Requested provider not configured
 - `AIConfigurationException` - Invalid configuration or empty inputs
@@ -510,7 +567,7 @@ export default defineConfig({
       apiKey: env.get('OPENAI_API_KEY'),
       model: 'gpt-4', // Use GPT-4
       timeout: 90000, // Override global timeout
-      maxRetries: 3,  // Override global retries
+      maxRetries: 3, // Override global retries
     }),
   },
 })
@@ -521,16 +578,16 @@ export default defineConfig({
 Override settings for individual requests:
 
 ```typescript
-const ai = await app.container.make('ai.manager')
+import ai from '@awalsolution/adonis-ai/services/main'
 
 // Custom temperature and max tokens
-const creative = await ai.default.generate('Write a poem', {
-  temperature: 0.9,  // More creative
+const creative = await ai.use().generate('Write a poem', {
+  temperature: 0.9, // More creative
   max_tokens: 500,
 })
 
-const factual = await ai.default.generate('Explain quantum physics', {
-  temperature: 0.3,  // More factual
+const factual = await ai.use().generate('Explain quantum physics', {
+  temperature: 0.3, // More factual
   max_tokens: 1000,
 })
 
@@ -541,32 +598,99 @@ const result = await ai.use('openai').generate('Hello', {
 })
 ```
 
-### Using Dependency Injection
+### Using in Services
 
-Inject the AI manager into your services:
+Use the AI service in your application services:
 
 ```typescript
-import { inject } from '@adonisjs/core'
-import type { AIManager } from '@awalsolution/adonis-ai/types'
+import ai from '@awalsolution/adonis-ai/services/main'
 
-@inject()
 export default class ArticleService {
-  constructor(protected ai: AIManager) {}
-
   async generateSummary(article: string) {
-    const result = await this.ai.default.generate(
-      `Summarize this article: ${article}`
-    )
+    const result = await ai.use().generate(`Summarize this article: ${article}`)
     return result.text
   }
 
   async suggestTags(content: string) {
-    const result = await this.ai.default.generate(
-      `Suggest 5 relevant tags for: ${content}`
-    )
-    return result.text.split(',').map(tag => tag.trim())
+    const result = await ai.use().generate(`Suggest 5 relevant tags for: ${content}`)
+    return result.text.split(',').map((tag) => tag.trim())
+  }
+
+  async improveContent(content: string) {
+    const result = await ai
+      .use('openai')
+      .generate(`Improve this content for better readability: ${content}`)
+    return result.text
   }
 }
+```
+
+### Model Flexibility
+
+The package supports **any model** from OpenAI and Gemini - you're not limited to the documented ones!
+
+#### Configure Default Models
+
+Set your preferred models in `.env`:
+
+```env
+# Use any OpenAI model
+OPENAI_MODEL=gpt-4-turbo-preview
+OPENAI_EMBEDDING_MODEL=text-embedding-3-large
+
+# Use any Gemini model
+GEMINI_MODEL=gemini-pro-vision
+GEMINI_EMBEDDING_MODEL=embedding-001
+```
+
+#### Override Models Per Request
+
+Use different models for specific requests:
+
+```typescript
+import ai from '@awalsolution/adonis-ai/services/main'
+
+// Use GPT-4 for complex reasoning
+const analysis = await ai.use('openai').generate('Analyze this data...', {
+  model: 'gpt-4',
+  temperature: 0.3,
+})
+
+// Use GPT-3.5 Turbo for simple tasks
+const summary = await ai.use('openai').generate('Summarize...', {
+  model: 'gpt-3.5-turbo',
+  temperature: 0.7,
+})
+
+// Use latest embedding models
+const embeddings = await ai.use('openai').embed(texts, {
+  model: 'text-embedding-3-large',
+})
+```
+
+#### All Provider Options Supported
+
+The `options` parameter passes through **all parameters** to the underlying SDK:
+
+**OpenAI Options:**
+- `model`, `temperature`, `max_tokens`, `top_p`, `frequency_penalty`, `presence_penalty`, `stop`, `n`, etc.
+- See [OpenAI API docs](https://platform.openai.com/docs/api-reference/chat/create)
+
+**Gemini Options:**
+- All parameters supported by Google's Generative AI SDK
+- See [Gemini API docs](https://ai.google.dev/api/rest)
+
+**Example with advanced options:**
+```typescript
+const result = await ai.use('openai').generate('Write a story', {
+  model: 'gpt-4-turbo-preview',
+  temperature: 0.9,
+  max_tokens: 2000,
+  top_p: 0.95,
+  frequency_penalty: 0.5,
+  presence_penalty: 0.2,
+  stop: ['\n\n'],
+})
 ```
 
 ---
@@ -626,72 +750,29 @@ All AI operations return structured responses:
 
 ---
 
-## 🧪 Testing Your Integration
-
-### Mock AI Responses
-
-```typescript
-import { test } from '@japa/runner'
-import { createMockAIResponse } from '@awalsolution/adonis-ai/tests/helpers'
-
-test('generates article summary', async ({ assert }) => {
-  // Create a mock response
-  const mockResponse = createMockAIResponse({
-    text: 'This is a test summary',
-    usage: { tokens: 50 },
-  })
-
-  // Your test logic here
-  assert.equal(mockResponse.text, 'This is a test summary')
-})
-```
-
-### Integration Tests
-
-```typescript
-import { test } from '@japa/runner'
-
-test.group('AI Integration', () => {
-  test('generates text with OpenAI', async ({ assert }) => {
-    const ai = await app.container.make('ai.manager')
-
-    const result = await ai.use('openai').generate('Hello')
-
-    assert.exists(result.text)
-    assert.isNumber(result.usage.tokens)
-  })
-
-  test('handles invalid prompts', async ({ assert }) => {
-    const ai = await app.container.make('ai.manager')
-
-    await assert.rejects(
-      async () => await ai.default.generate(''),
-      'Prompt cannot be empty'
-    )
-  })
-})
-```
-
----
-
 ## 📚 Available Models
 
 ### OpenAI Models
 
-| Model | Use Case | Cost |
-|-------|----------|------|
-| `gpt-4-turbo-preview` | Most capable, best for complex tasks | $$$ |
-| `gpt-4` | Very capable, good reasoning | $$$ |
-| `gpt-3.5-turbo` | Fast, cost-effective, recommended | $ |
-| `text-embedding-ada-002` | Embeddings for semantic search | $ |
+| Model                      | Use Case                               | Cost |
+| -------------------------- | -------------------------------------- | ---- |
+| `gpt-4-turbo`              | Most capable, best for complex tasks   | $$$  |
+| `gpt-4o`                   | Optimized GPT-4, faster and cheaper    | $$   |
+| `gpt-4`                    | Very capable, good reasoning           | $$$  |
+| `gpt-3.5-turbo`            | Fast, cost-effective, recommended      | $    |
+| `text-embedding-3-large`   | Latest, best embedding quality         | $    |
+| `text-embedding-3-small`   | Faster, good quality embeddings        | $    |
+| `text-embedding-ada-002`   | Legacy embedding model                 | $    |
 
 ### Google Gemini Models
 
-| Model | Use Case | Cost |
-|-------|----------|------|
-| `gemini-pro` | Text generation and chat | $ |
-| `gemini-pro-vision` | Multimodal (text + images) | $$ |
-| `embedding-001` | Embeddings | $ |
+| Model               | Use Case                   | Cost |
+| ------------------- | -------------------------- | ---- |
+| `gemini-1.5-pro`    | Latest, best performance   | $$   |
+| `gemini-1.5-flash`  | Fast, cost-effective       | $    |
+| `gemini-pro`        | Text generation and chat   | $    |
+| `gemini-pro-vision` | Multimodal (text + images) | $$   |
+| `embedding-001`     | Embeddings                 | $    |
 
 ---
 
@@ -700,26 +781,31 @@ test.group('AI Integration', () => {
 ### Common Issues
 
 **1. "API key is missing or invalid"**
+
 - Check your `.env` file has the correct API key
 - Ensure no extra spaces in the API key
 - Verify the key is active on the provider's dashboard
 
 **2. "AI driver not found"**
+
 - Make sure the provider is configured in `config/ai.ts`
 - Run `node ace configure @awalsolution/adonis-ai` again
 - Check that `AI_DRIVER` in `.env` matches a configured service
 
 **3. "Request timeout"**
+
 - Increase timeout in config: `timeout: 60000`
 - Check your internet connection
 - Try a simpler prompt to test
 
 **4. "Rate limit exceeded"**
+
 - Wait a few minutes before retrying
 - Consider upgrading your API plan
 - Implement request queuing in your app
 
 **5. Empty or undefined responses**
+
 - Check that your prompt is not empty
 - Verify the model supports your request type
 - Look at the `finishReason` in the response
@@ -748,13 +834,13 @@ NODE_DEBUG=adonis:ai
 ```typescript
 // Example: Cache with Redis
 import redis from '@adonisjs/redis/services/main'
+import ai from '@awalsolution/adonis-ai/services/main'
 
 const cacheKey = `ai:summary:${articleId}`
 let summary = await redis.get(cacheKey)
 
 if (!summary) {
-  const ai = await app.container.make('ai.manager')
-  const result = await ai.default.generate(`Summarize: ${article}`)
+  const result = await ai.use().generate(`Summarize: ${article}`)
   summary = result.text
 
   await redis.setex(cacheKey, 3600, summary) // Cache 1 hour
@@ -787,7 +873,7 @@ router.post('/generate', [
   }),
   async ({ request }) => {
     // Your AI logic
-  }
+  },
 ])
 ```
 

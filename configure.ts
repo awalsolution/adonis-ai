@@ -27,7 +27,12 @@ const AI_SERVICES = {
       {
         name: 'OPENAI_MODEL',
         value: 'gpt-3.5-turbo',
-        schema: `Env.schema.enum(['gpt-3.5-turbo','gpt-4','gpt-4-turbo-preview'] as const)`,
+        schema: 'Env.schema.string()',
+      },
+      {
+        name: 'OPENAI_EMBEDDING_MODEL',
+        value: 'text-embedding-ada-002',
+        schema: 'Env.schema.string()',
       },
       { name: 'OPENAI_MAX_TOKENS', value: '1000', schema: 'Env.schema.number()' },
       { name: 'OPENAI_TEMPERATURE', value: '0.7', schema: 'Env.schema.number()' },
@@ -41,7 +46,12 @@ const AI_SERVICES = {
       {
         name: 'GEMINI_MODEL',
         value: 'gemini-pro',
-        schema: `Env.schema.enum(['gemini-pro','gemini-pro-vision'] as const)`,
+        schema: 'Env.schema.string()',
+      },
+      {
+        name: 'GEMINI_EMBEDDING_MODEL',
+        value: 'embedding-001',
+        schema: 'Env.schema.string()',
       },
       { name: 'GEMINI_MAX_TOKENS', value: '1000', schema: 'Env.schema.number()' },
       { name: 'GEMINI_TEMPERATURE', value: '0.7', schema: 'Env.schema.number()' },

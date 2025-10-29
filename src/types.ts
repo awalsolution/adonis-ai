@@ -93,8 +93,11 @@ export interface AIDriver extends AIDriverContract {}
 export interface OpenAIConfig {
   apiKey: string
   model?: string
+  embeddingModel?: string
   maxTokens?: number
   temperature?: number
+  timeout?: number
+  maxRetries?: number
 }
 
 /**
@@ -103,8 +106,11 @@ export interface OpenAIConfig {
 export interface GeminiConfig {
   apiKey: string
   model?: string
+  embeddingModel?: string
   maxTokens?: number
   temperature?: number
+  timeout?: number
+  maxRetries?: number
 }
 
 /**

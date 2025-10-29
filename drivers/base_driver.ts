@@ -42,9 +42,9 @@ export abstract class BaseAIDriver implements AIDriverContract {
   /**
    * Convert API errors to user-friendly exceptions
    */
-  protected mapCommonErrors(error: any): never {
-    const message = error.message || 'Unknown error occurred'
-    const statusCode = error.status || error.code
+  protected mapCommonErrors(error: unknown): never {
+    const message = error instanceof Error ? error.message : 'Unknown error occurred'
+    const statusCode = (error as any)?.status || (error as any)?.code
 
     // Missing or invalid API key
     if (this.isAuthError(message, statusCode)) {
@@ -58,7 +58,7 @@ export abstract class BaseAIDriver implements AIDriverContract {
 
     // Request timeout
     if (this.isTimeoutError(message, statusCode)) {
-      throw new AITimeoutException(this.providerName, 30000)
+      throw new AITimeoutException(this.providerName, this.timeout)
     }
 
     // Service unavailable

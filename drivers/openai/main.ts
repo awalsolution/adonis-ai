@@ -20,16 +20,10 @@ import type {
   AIEmbeddingResponse,
   AIStreamResponse,
   AIChatMessage,
+  OpenAIConfig,
 } from '../../src/types.js'
 import { BaseAIDriver } from '../../drivers/base_driver.js'
 import { AIConfigurationException } from '../../src/errors.js'
-
-export interface OpenAIConfig {
-  apiKey: string
-  model?: string
-  timeout?: number
-  maxRetries?: number
-}
 
 /**
  * Default configuration constants for OpenAI driver
@@ -42,12 +36,14 @@ const DEFAULT_EMBEDDING_MODEL = 'text-embedding-ada-002'
 export class OpenAIDriver extends BaseAIDriver implements AIDriverContract {
   private client: OpenAI
   private defaultModel: string
+  private defaultEmbeddingModel: string
   private defaultMaxTokens: number
   private defaultTemperature: number
 
   constructor(config: OpenAIConfig) {
     super('openai', config.timeout, config.maxRetries)
     this.defaultModel = config.model || DEFAULT_MODEL
+    this.defaultEmbeddingModel = config.embeddingModel || DEFAULT_EMBEDDING_MODEL
     this.defaultMaxTokens = DEFAULT_MAX_TOKENS
     this.defaultTemperature = DEFAULT_TEMPERATURE
     this.client = new OpenAI({
@@ -96,7 +92,7 @@ export class OpenAIDriver extends BaseAIDriver implements AIDriverContract {
             })
         )
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       throw this.mapCommonErrors(error)
     }
   }
@@ -147,7 +143,7 @@ export class OpenAIDriver extends BaseAIDriver implements AIDriverContract {
             })
         )
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       throw this.mapCommonErrors(error)
     }
   }
@@ -174,7 +170,7 @@ export class OpenAIDriver extends BaseAIDriver implements AIDriverContract {
         return await this.withTimeout(
           this.client.embeddings
             .create({
-              model: DEFAULT_EMBEDDING_MODEL,
+              model: options?.model || this.defaultEmbeddingModel,
               input: texts,
               ...options,
             })
@@ -188,7 +184,7 @@ export class OpenAIDriver extends BaseAIDriver implements AIDriverContract {
             })
         )
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       throw this.mapCommonErrors(error)
     }
   }
@@ -217,7 +213,7 @@ export class OpenAIDriver extends BaseAIDriver implements AIDriverContract {
         stream: this.processStream(stream),
         usage: { tokens: 0 },
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       throw this.mapCommonErrors(error)
     }
   }

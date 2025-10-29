@@ -20,19 +20,10 @@ import type {
   AIEmbeddingResponse,
   AIStreamResponse,
   AIChatMessage,
+  GeminiConfig,
 } from '../../src/types.js'
 import { BaseAIDriver } from '../../drivers/base_driver.js'
 import { AIConfigurationException } from '../../src/errors.js'
-
-/**
- * Configuration for Gemini AI driver
- */
-export interface GeminiConfig {
-  apiKey: string
-  model?: string
-  timeout?: number
-  maxRetries?: number
-}
 
 /**
  * Default configuration constants for Gemini driver
@@ -46,10 +37,12 @@ const DEFAULT_EMBEDDING_MODEL = 'embedding-001'
 export class GeminiDriver extends BaseAIDriver implements AIDriverContract {
   private client: GoogleGenerativeAI
   private defaultModel: string
+  private defaultEmbeddingModel: string
 
   constructor(config: GeminiConfig) {
     super('gemini', config.timeout, config.maxRetries)
     this.defaultModel = config.model || DEFAULT_MODEL
+    this.defaultEmbeddingModel = config.embeddingModel || DEFAULT_EMBEDDING_MODEL
     this.client = new GoogleGenerativeAI(config.apiKey)
   }
 
@@ -89,7 +82,7 @@ export class GeminiDriver extends BaseAIDriver implements AIDriverContract {
           })()
         )
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       throw this.mapCommonErrors(error)
     }
   }
@@ -145,7 +138,7 @@ export class GeminiDriver extends BaseAIDriver implements AIDriverContract {
           })()
         )
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       throw this.mapCommonErrors(error)
     }
   }
@@ -153,7 +146,7 @@ export class GeminiDriver extends BaseAIDriver implements AIDriverContract {
   /**
    * Generate embeddings for text with parallel processing
    */
-  async embed(text: string | string[], _options?: any): Promise<AIEmbeddingResponse> {
+  async embed(text: string | string[], options?: any): Promise<AIEmbeddingResponse> {
     const texts = Array.isArray(text) ? text : [text]
 
     // Validate input
@@ -172,7 +165,7 @@ export class GeminiDriver extends BaseAIDriver implements AIDriverContract {
         return await this.withTimeout(
           (async () => {
             const model = this.client.getGenerativeModel({
-              model: DEFAULT_EMBEDDING_MODEL,
+              model: options?.model || this.defaultEmbeddingModel,
             })
 
             // Process embeddings in parallel for better performance
@@ -189,7 +182,7 @@ export class GeminiDriver extends BaseAIDriver implements AIDriverContract {
           })()
         )
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       throw this.mapCommonErrors(error)
     }
   }
@@ -215,7 +208,7 @@ export class GeminiDriver extends BaseAIDriver implements AIDriverContract {
         stream: this.processStream(result.stream),
         usage: { tokens: 0 },
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       throw this.mapCommonErrors(error)
     }
   }

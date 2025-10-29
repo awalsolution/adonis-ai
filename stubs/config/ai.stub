@@ -14,12 +14,14 @@ const aiConfig = defineConfig({
     openai: services.openai({
       apiKey: env.get('OPENAI_API_KEY'),
       model: env.get('OPENAI_MODEL', 'gpt-3.5-turbo'),
+      embeddingModel: env.get('OPENAI_EMBEDDING_MODEL', 'text-embedding-ada-002'),
       maxTokens: env.get('OPENAI_MAX_TOKENS', 1000),
       temperature: env.get('OPENAI_TEMPERATURE', 0.7),
     }),{{/if}}{{#if services.includes('gemini')}}
     gemini: services.gemini({
       apiKey: env.get('GEMINI_API_KEY'),
       model: env.get('GEMINI_MODEL', 'gemini-pro'),
+      embeddingModel: env.get('GEMINI_EMBEDDING_MODEL', 'embedding-001'),
       maxTokens: env.get('GEMINI_MAX_TOKENS', 1000),
       temperature: env.get('GEMINI_TEMPERATURE', 0.7),
     }),{{/if}}
